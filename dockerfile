@@ -1,4 +1,4 @@
-# Imagen base PHP + extensiones necesarias
+# Usamos imagen de PHP + Composer
 FROM php:8.2-fpm
 
 # Instalar dependencias del sistema
@@ -10,29 +10,30 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     curl \
-    default-mysql-client \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd \
-    && apt-get clean
+    && rm -rf /var/lib/apt/lists/*
 
-# Instalar Composer
+# Copiamos Composer desde la imagen oficial
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Crear directorio de la app
+# Establecemos el directorio de trabajo
 WORKDIR /var/www/html
 
-# Copiar solo composer para aprovechar cache
+# Copiamos los archivos de Composer primero para aprovechar cache
 COPY composer.json composer.lock ./
 
-# Instalar dependencias de Laravel
+# Instalamos dependencias de PHP
 RUN composer install --no-interaction --optimize-autoloader
 
-# Copiar el resto del proyecto
+# Ahora copiamos el resto del proyecto
 COPY . .
 
-# Permisos para storage y bootstrap/cache
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# Si necesitas correr Artisan commands de inicialización
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
-EXPOSE 9000
+# Exponemos el puerto (opcional, si tu contenedor sirve PHP directamente)
+EXPOSE 8000
 
+# CMD final del contenedor
 CMD ["php-fpm"]
