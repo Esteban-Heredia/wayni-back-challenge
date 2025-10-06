@@ -11,26 +11,28 @@ RUN apt-get update && apt-get install -y \
     zip \
     curl \
     default-mysql-client \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd \
+    && apt-get clean
 
 # Instalar Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Crear directorio de la app
-WORKDIR /var/www
+WORKDIR /var/www/html
 
-# Copiar archivos
-COPY . .
+# Copiar solo composer para aprovechar cache
+COPY composer.json composer.lock ./
 
 # Instalar dependencias de Laravel
 RUN composer install --no-interaction --optimize-autoloader
 
+# Copiar el resto del proyecto
+COPY . .
+
 # Permisos para storage y bootstrap/cache
-RUN chown -R www-data:www-data /var/www \
-    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Exponer puerto
-EXPOSE 8000
+EXPOSE 9000
 
-# CMD para iniciar php-fpm
 CMD ["php-fpm"]
